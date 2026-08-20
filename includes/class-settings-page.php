@@ -12,9 +12,21 @@ class WCKonsol_Settings_Page
         add_action('admin_post_wckonsol_start_claim', [__CLASS__, 'handle_start_claim']);
     }
 
+    /** Önceden `add_options_page` ile Settings altında gizliydi — WooCommerce
+     * entegrasyonu olan bir eklenti için görünürlüğü düşüktü. Artık kendi
+     * üst düzey menüsü, WooCommerce'in kendi menüsünün (position 55.5)
+     * hemen üstünde (55.4) — solda WooCommerce'in üstünde görünsün diye. */
     public static function add_menu()
     {
-        add_options_page('WC Konsol', 'WC Konsol', 'manage_options', 'wckonsol-connector', [__CLASS__, 'render']);
+        add_menu_page(
+            'WC Konsol',
+            'WC Konsol',
+            'manage_options',
+            'wckonsol-connector',
+            [__CLASS__, 'render'],
+            'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIgdmlld0JveD0iMCAwIDMyIDMyIiBmaWxsPSJub25lIiByb2xlPSJpbWciIGFyaWEtbGFiZWw9IldDIEtvbnNvbCI+CiAgPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjgiIGhlaWdodD0iOCIgcng9IjIiIGZpbGw9IiNiOGM4ZDgiLz4KICA8cmVjdCB4PSIxMiIgeT0iMCIgd2lkdGg9IjgiIGhlaWdodD0iOCIgcng9IjIiIGZpbGw9IiNiOGM4ZDgiLz4KICA8cmVjdCB4PSIyNCIgeT0iMCIgd2lkdGg9IjgiIGhlaWdodD0iOCIgcng9IjIiIGZpbGw9IiNiOGM4ZDgiLz4KICA8cmVjdCB4PSIwIiB5PSIxMiIgd2lkdGg9IjgiIGhlaWdodD0iOCIgcng9IjIiIGZpbGw9IiNiOGM4ZDgiLz4KICA8cmVjdCB4PSIxMiIgeT0iMTIiIHdpZHRoPSI4IiBoZWlnaHQ9IjgiIHJ4PSIyIiBmaWxsPSIjN2MzYmVkIi8+CiAgPHJlY3QgeD0iMjQiIHk9IjEyIiB3aWR0aD0iOCIgaGVpZ2h0PSI4IiByeD0iMiIgZmlsbD0iI2I4YzhkOCIvPgogIDxyZWN0IHg9IjAiIHk9IjI0IiB3aWR0aD0iOCIgaGVpZ2h0PSI4IiByeD0iMiIgZmlsbD0iI2I4YzhkOCIvPgogIDxyZWN0IHg9IjEyIiB5PSIyNCIgd2lkdGg9IjgiIGhlaWdodD0iOCIgcng9IjIiIGZpbGw9IiNiOGM4ZDgiLz4KICA8cmVjdCB4PSIyNCIgeT0iMjQiIHdpZHRoPSI4IiBoZWlnaHQ9IjgiIHJ4PSIyIiBmaWxsPSIjYjhjOGQ4Ii8+Cjwvc3ZnPgo=',
+            55.4
+        );
     }
 
     public static function handle_connect()
@@ -27,7 +39,7 @@ class WCKonsol_Settings_Page
 
         $redirect = add_query_arg(
             $result['ok'] ? ['wckonsol_status' => 'connected'] : ['wckonsol_status' => 'error', 'wckonsol_error' => rawurlencode($result['error'])],
-            admin_url('options-general.php?page=wckonsol-connector'),
+            admin_url('admin.php?page=wckonsol-connector'),
         );
         wp_safe_redirect($redirect);
         exit;
@@ -38,7 +50,7 @@ class WCKonsol_Settings_Page
         if (!current_user_can('manage_options')) wp_die('forbidden', 403);
         check_admin_referer('wckonsol_disconnect');
         WCKonsol_Pairing::disconnect();
-        wp_safe_redirect(add_query_arg(['wckonsol_status' => 'disconnected'], admin_url('options-general.php?page=wckonsol-connector')));
+        wp_safe_redirect(add_query_arg(['wckonsol_status' => 'disconnected'], admin_url('admin.php?page=wckonsol-connector')));
         exit;
     }
 
@@ -48,7 +60,7 @@ class WCKonsol_Settings_Page
         check_admin_referer('wckonsol_save_api_base');
         update_option(WCKonsol_Pairing::OPT_API_BASE, esc_url_raw($_POST['api_base'] ?? ''), true);
         update_option(WCKonsol_Pairing::OPT_APP_BASE, esc_url_raw($_POST['app_base'] ?? ''), true);
-        wp_safe_redirect(add_query_arg(['wckonsol_status' => 'api_base_saved'], admin_url('options-general.php?page=wckonsol-connector')));
+        wp_safe_redirect(add_query_arg(['wckonsol_status' => 'api_base_saved'], admin_url('admin.php?page=wckonsol-connector')));
         exit;
     }
 
@@ -67,7 +79,7 @@ class WCKonsol_Settings_Page
 
         $redirect = add_query_arg(
             $result['ok'] ? ['wckonsol_status' => 'claim_started'] : ['wckonsol_status' => 'error', 'wckonsol_error' => rawurlencode($result['error'])],
-            admin_url('options-general.php?page=wckonsol-connector'),
+            admin_url('admin.php?page=wckonsol-connector'),
         );
         wp_safe_redirect($redirect);
         exit;

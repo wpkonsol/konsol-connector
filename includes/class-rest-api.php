@@ -49,6 +49,19 @@ class WCKonsol_REST_API
             // ArgumentCountError'la 500 patlıyordu (canlıda yakalandı).
             'args' => ['id' => ['required' => true, 'validate_callback' => fn($value) => is_numeric($value)]],
         ]);
+
+        // `product_cat` bir term — `write_seo`nun post_meta'sı burada işe
+        // yaramıyor. Rank Math term'lerde de post'takiyle aynı meta key'leri
+        // kullanıyor (yalnızca tablo farklı, `wp_termmeta`), ama Yoast term
+        // SEO'yu hiç meta olarak tutmuyor — tek bir `wpseo_taxonomy_meta`
+        // option'ında `[taxonomy][term_id] => [wpseo_title, wpseo_desc]`
+        // iç içe dizi olarak saklıyor, bkz. `write_category_seo`.
+        register_rest_route(self::NAMESPACE, '/categories/(?P<id>\d+)/seo', [
+            'methods' => 'POST',
+            'callback' => [__CLASS__, 'write_category_seo'],
+            'permission_callback' => [__CLASS__, 'check_auth'],
+            'args' => ['id' => ['required' => true, 'validate_callback' => fn($value) => is_numeric($value)]],
+        ]);
     }
 
     public static function check_auth(WP_REST_Request $request): bool
@@ -112,6 +125,46 @@ class WCKonsol_REST_API
         } elseif ($plugin === 'rankmath') {
             if ($seo_title !== null) update_post_meta($product_id, 'rank_math_title', sanitize_text_field($seo_title));
             if ($meta_description !== null) update_post_meta($product_id, 'rank_math_description', sanitize_text_field($meta_description));
+        }
+
+        return ['ok' => true, 'seoPlugin' => $plugin];
+    }
+
+    /** `write_seo`nun kategori/term versiyonu — bkz. route yorumu, ikisinin
+     * depolama şekli birbirinden tamamen farklı. */
+    public static function write_category_seo(WP_REST_Request $request)
+    {
+        $term_id = (int) $request['id'];
+        $term = get_term($term_id, 'product_cat');
+        if (!$term || is_wp_error($term)) {
+            return new WP_Error('wckonsol_category_not_found', 'Category not found', ['status' => 404]);
+        }
+
+        $seo_title = $request->get_param('seoTitle');
+        $meta_description = $request->get_param('metaDescription');
+        $plugin = WCKonsol_Pairing::detect_seo_plugin();
+
+        if (!$plugin) {
+            return new WP_Error('wckonsol_no_seo_plugin', 'Neither Yoast SEO nor Rank Math is active on this site', ['status' => 409]);
+        }
+
+        if ($plugin === 'yoast') {
+            // Yoast term SEO'yu meta olarak DEĞİL, tek bir `wpseo_taxonomy_meta`
+            // option'ında `[taxonomy][term_id] => [...]` iç içe dizi olarak
+            // tutuyor (`WPSEO_Taxonomy_Meta`) — post'takinden farklı yol.
+            $taxonomy_meta = get_option('wpseo_taxonomy_meta', []);
+            if (!is_array($taxonomy_meta)) $taxonomy_meta = [];
+            if (!isset($taxonomy_meta['product_cat'][$term_id]) || !is_array($taxonomy_meta['product_cat'][$term_id])) {
+                $taxonomy_meta['product_cat'][$term_id] = [];
+            }
+            if ($seo_title !== null) $taxonomy_meta['product_cat'][$term_id]['wpseo_title'] = sanitize_text_field($seo_title);
+            if ($meta_description !== null) $taxonomy_meta['product_cat'][$term_id]['wpseo_desc'] = sanitize_text_field($meta_description);
+            update_option('wpseo_taxonomy_meta', $taxonomy_meta);
+        } elseif ($plugin === 'rankmath') {
+            // Rank Math, post'ta olduğu gibi term'de de gerçek meta kullanıyor
+            // (`wp_termmeta`), yalnızca tablo farklı — aynı key isimleri.
+            if ($seo_title !== null) update_term_meta($term_id, 'rank_math_title', sanitize_text_field($seo_title));
+            if ($meta_description !== null) update_term_meta($term_id, 'rank_math_description', sanitize_text_field($meta_description));
         }
 
         return ['ok' => true, 'seoPlugin' => $plugin];
