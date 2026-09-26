@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: WC Konsol Connector
+ * Plugin Name: Konsol Connector
  * Plugin URI: https://wckonsol.com
  * Description: Konsol'un WordPress/WooCommerce çekirdek REST API'sinin yapamadığı işleri açar — Yoast/Rank Math SEO alanları (hem WooCommerce ürünleri/kategorileri HEM WP Konsol blog yazıları için), günlük satış toplamları, güvenilir revizyon kontrolü. Katalog senkronizasyonu ve ürün görseli yayınlama bu eklenti OLMADAN da çalışır (bkz. readme.txt).
  * Version: 0.2.0

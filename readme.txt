@@ -1,4 +1,4 @@
-=== WC Konsol Connector ===
+=== Konsol Connector ===
 Contributors: wpkonsol
 Tags: woocommerce, seo, ai, content
 Requires at least: 6.0
