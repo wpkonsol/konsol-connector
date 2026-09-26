@@ -4,7 +4,7 @@ Tags: woocommerce, seo, ai, content
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.2.0
+Stable tag: 0.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -25,13 +25,17 @@ a pairing code from WC Konsol's Stores screen or WP Konsol's Sites screen, and p
 
 == Installation ==
 
-1. Upload the plugin files to `/wp-content/plugins/wckonsol-connector`, or install via the WordPress plugin screen.
+1. Upload the plugin files to `/wp-content/plugins/konsol-connector`, or install via the WordPress plugin screen.
 2. Activate the plugin.
 3. Go to the "Konsol" menu.
 4. In WC Konsol (Stores → your store) or WP Konsol (Sites → your site), open "Connect with the plugin" and copy the pairing code.
 5. Paste the code and click Connect.
 
 == Changelog ==
+
+= 0.3.0 =
+* Renamed throughout: folder/main file, classes, constants, option keys, hooks and the REST namespace (`konsol/v1`) all dropped the "wc" prefix — the plugin's own identity no longer looks WooCommerce-only now that it genuinely serves both products.
+* Fixed a real bug found during the rename: the default API base pointed at `api.wckonsol.com`, a domain that never resolved. There is only one Konsol API (`api.wpkonsol.com`) — fixed.
 
 = 0.2.0 =
 * Extended to WP Konsol: new `/posts/:id/seo` endpoint writes Yoast/Rank Math meta for blog posts, not just WooCommerce products/categories.

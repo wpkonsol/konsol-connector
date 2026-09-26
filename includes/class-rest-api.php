@@ -2,7 +2,7 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * `wckonsol/v1` — WC Konsol API'sinin bu siteye ÇAĞIRDIĞI uçlar (yön ters:
+ * `konsol/v1` — Konsol API'sinin bu siteye ÇAĞIRDIĞI uçlar (yön ters:
  * pairing/heartbeat eklentiden API'ye gider, bunlar API'den eklentiye).
  * Kimlik doğrulama basit bir bearer token — pairing'de üretilip hem API
  * hem eklenti tarafında saklanıyor (bkz. `class-pairing.php`). Ed25519 imza
@@ -10,9 +10,9 @@ if (!defined('ABSPATH')) exit;
  * çünkü orada "bu isteği gerçekten bu kurulum mu attı" kanıtlanması
  * gerekiyor; burada API zaten pairing'de doğrulanmış bir sır taşıyor.
  */
-class WCKonsol_REST_API
+class Konsol_REST_API
 {
-    const NAMESPACE = 'wckonsol/v1';
+    const NAMESPACE = 'konsol/v1';
 
     public static function init()
     {
@@ -75,7 +75,7 @@ class WCKonsol_REST_API
         ]);
 
         // 2026-09-06 — "wp-admin'e giriş" butonu (Konsol → Stores). Tek
-        // kullanımlık, 60 saniyelik bir token üretir (bkz. `WCKonsol_Login`);
+        // kullanımlık, 60 saniyelik bir token üretir (bkz. `Konsol_Login`);
         // Konsol'un kendi `/auth/exchange-token` desenininin aynısı, yalnızca
         // WordPress tarafında. Hangi WP kullanıcısı olarak giriş yapılacağı
         // pairing'de hiç kaydedilmediği için basitçe siteye ait İLK
@@ -103,10 +103,10 @@ class WCKonsol_REST_API
     {
         $admins = get_users(['role' => 'administrator', 'number' => 1, 'orderby' => 'ID', 'order' => 'ASC']);
         if (empty($admins)) {
-            return new WP_Error('wckonsol_no_admin_user', 'No administrator user found on this site', ['status' => 404]);
+            return new WP_Error('konsol_no_admin_user', 'No administrator user found on this site', ['status' => 404]);
         }
 
-        return ['loginUrl' => WCKonsol_Login::create_token((int) $admins[0]->ID)];
+        return ['loginUrl' => Konsol_Login::create_token((int) $admins[0]->ID)];
     }
 
     /**
@@ -181,7 +181,7 @@ class WCKonsol_REST_API
 
     public static function check_auth(WP_REST_Request $request): bool
     {
-        $expected = get_option(WCKonsol_Pairing::OPT_CONNECTION_TOKEN, '');
+        $expected = get_option(Konsol_Pairing::OPT_CONNECTION_TOKEN, '');
         if (!$expected) return false;
         $header = $request->get_header('authorization') ?? '';
         if (!str_starts_with($header, 'Bearer ')) return false;
@@ -191,7 +191,7 @@ class WCKonsol_REST_API
     public static function site_info(): array
     {
         return [
-            'siteUuid' => WCKonsol_Keys::site_uuid(),
+            'siteUuid' => Konsol_Keys::site_uuid(),
             'url' => home_url(),
             'siteName' => get_bloginfo('name'),
             'wpVersion' => get_bloginfo('version'),
@@ -204,11 +204,11 @@ class WCKonsol_REST_API
     {
         return [
             'catalogue' => true,
-            'seoFields' => WCKonsol_Pairing::detect_seo_plugin() !== null,
+            'seoFields' => Konsol_Pairing::detect_seo_plugin() !== null,
             'mediaUpload' => true,
             'salesTotals' => class_exists('WooCommerce'),
             'siteOperations' => false,
-            'seoPlugin' => WCKonsol_Pairing::detect_seo_plugin(),
+            'seoPlugin' => Konsol_Pairing::detect_seo_plugin(),
             'multilingualPlugin' => defined('ICL_SITEPRESS_VERSION') ? 'wpml' : (defined('POLYLANG_VERSION') ? 'polylang' : null),
         ];
     }
@@ -223,7 +223,7 @@ class WCKonsol_REST_API
     {
         $product_id = (int) $request['id'];
         if (!get_post($product_id) || get_post_type($product_id) !== 'product') {
-            return new WP_Error('wckonsol_product_not_found', 'Product not found', ['status' => 404]);
+            return new WP_Error('konsol_product_not_found', 'Product not found', ['status' => 404]);
         }
         return self::write_meta_seo($product_id, $request);
     }
@@ -234,7 +234,7 @@ class WCKonsol_REST_API
     {
         $post_id = (int) $request['id'];
         if (!get_post($post_id) || get_post_type($post_id) !== 'post') {
-            return new WP_Error('wckonsol_post_not_found', 'Post not found', ['status' => 404]);
+            return new WP_Error('konsol_post_not_found', 'Post not found', ['status' => 404]);
         }
         return self::write_meta_seo($post_id, $request);
     }
@@ -247,10 +247,10 @@ class WCKonsol_REST_API
     {
         $seo_title = $request->get_param('seoTitle');
         $meta_description = $request->get_param('metaDescription');
-        $plugin = WCKonsol_Pairing::detect_seo_plugin();
+        $plugin = Konsol_Pairing::detect_seo_plugin();
 
         if (!$plugin) {
-            return new WP_Error('wckonsol_no_seo_plugin', 'Neither Yoast SEO nor Rank Math is active on this site', ['status' => 409]);
+            return new WP_Error('konsol_no_seo_plugin', 'Neither Yoast SEO nor Rank Math is active on this site', ['status' => 409]);
         }
 
         if ($plugin === 'yoast') {
@@ -271,15 +271,15 @@ class WCKonsol_REST_API
         $term_id = (int) $request['id'];
         $term = get_term($term_id, 'product_cat');
         if (!$term || is_wp_error($term)) {
-            return new WP_Error('wckonsol_category_not_found', 'Category not found', ['status' => 404]);
+            return new WP_Error('konsol_category_not_found', 'Category not found', ['status' => 404]);
         }
 
         $seo_title = $request->get_param('seoTitle');
         $meta_description = $request->get_param('metaDescription');
-        $plugin = WCKonsol_Pairing::detect_seo_plugin();
+        $plugin = Konsol_Pairing::detect_seo_plugin();
 
         if (!$plugin) {
-            return new WP_Error('wckonsol_no_seo_plugin', 'Neither Yoast SEO nor Rank Math is active on this site', ['status' => 409]);
+            return new WP_Error('konsol_no_seo_plugin', 'Neither Yoast SEO nor Rank Math is active on this site', ['status' => 409]);
         }
 
         if ($plugin === 'yoast') {

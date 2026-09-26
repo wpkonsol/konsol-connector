@@ -6,15 +6,15 @@ if (!defined('ABSPATH')) exit;
  * önce" akışı (SITE_IDENTITY_AND_TRANSFER.md §3) — kullanıcı önce
  * app.wckonsol.com'da bir kod üretir, o kodu burada girer.
  */
-class WCKonsol_Pairing
+class Konsol_Pairing
 {
-    const OPT_API_BASE = 'wckonsol_api_base';
-    const OPT_APP_BASE = 'wckonsol_app_base';
-    const OPT_CONNECTION_TOKEN = 'wckonsol_connection_token';
-    const OPT_PAIRED_SITE_ID = 'wckonsol_paired_site_id';
-    const OPT_CLAIM_TOKEN = 'wckonsol_claim_token';
-    const CRON_HOOK = 'wckonsol_heartbeat';
-    const AJAX_ACTION = 'wckonsol_poll_claim';
+    const OPT_API_BASE = 'konsol_api_base';
+    const OPT_APP_BASE = 'konsol_app_base';
+    const OPT_CONNECTION_TOKEN = 'konsol_connection_token';
+    const OPT_PAIRED_SITE_ID = 'konsol_paired_site_id';
+    const OPT_CLAIM_TOKEN = 'konsol_claim_token';
+    const CRON_HOOK = 'konsol_heartbeat';
+    const AJAX_ACTION = 'konsol_poll_claim';
 
     public static function init()
     {
@@ -25,7 +25,7 @@ class WCKonsol_Pairing
     public static function api_base(): string
     {
         $override = trim((string) get_option(self::OPT_API_BASE, ''));
-        return $override !== '' ? rtrim($override, '/') : rtrim(WCKONSOL_API_BASE, '/');
+        return $override !== '' ? rtrim($override, '/') : rtrim(KONSOL_API_BASE, '/');
     }
 
     /** Kullanıcı "Gelişmiş"te elle bir adres girmediyse, "eklenti önce"
@@ -38,7 +38,7 @@ class WCKonsol_Pairing
     {
         $override = trim((string) get_option(self::OPT_APP_BASE, ''));
         if ($override !== '') return rtrim($override, '/');
-        return rtrim(class_exists('WooCommerce') ? WCKONSOL_APP_BASE : WPKONSOL_APP_BASE, '/');
+        return rtrim(class_exists('WooCommerce') ? KONSOL_APP_BASE_WCKONSOL : KONSOL_APP_BASE_WPKONSOL, '/');
     }
 
     public static function is_paired(): bool
@@ -63,8 +63,8 @@ class WCKonsol_Pairing
         if (!wp_next_scheduled(self::CRON_HOOK)) {
             // WP çekirdeğinin varsayılan aralıkları (hourly/twicedaily/daily)
             // eklenti bağlantısının canlılığını göstermek için çok seyrek —
-            // 'wckonsol_five_minutes' özel bir aralık tanımlıyoruz.
-            wp_schedule_event(time(), 'wckonsol_five_minutes', self::CRON_HOOK);
+            // 'konsol_five_minutes' özel bir aralık tanımlıyoruz.
+            wp_schedule_event(time(), 'konsol_five_minutes', self::CRON_HOOK);
         }
     }
 
@@ -84,13 +84,13 @@ class WCKonsol_Pairing
      */
     public static function confirm(string $pairing_code): array
     {
-        $site_uuid = WCKonsol_Keys::site_uuid();
-        $signature = WCKonsol_Keys::sign("{$pairing_code}\n{$site_uuid}");
+        $site_uuid = Konsol_Keys::site_uuid();
+        $signature = Konsol_Keys::sign("{$pairing_code}\n{$site_uuid}");
 
         $body = [
             'pairingCode' => $pairing_code,
             'siteUuid' => $site_uuid,
-            'publicKey' => WCKonsol_Keys::public_key_base64(),
+            'publicKey' => Konsol_Keys::public_key_base64(),
             'signature' => $signature,
             'siteInfo' => [
                 'url' => home_url(),
@@ -136,10 +136,10 @@ class WCKonsol_Pairing
      * takılı kalmasın). */
     public static function disconnect()
     {
-        $site_uuid = WCKonsol_Keys::site_uuid();
+        $site_uuid = Konsol_Keys::site_uuid();
         $timestamp = (string) round(microtime(true) * 1000);
         $nonce = wp_generate_password(16, false);
-        $signature = WCKonsol_Keys::sign("{$site_uuid}\n{$timestamp}\n{$nonce}");
+        $signature = Konsol_Keys::sign("{$site_uuid}\n{$timestamp}\n{$nonce}");
 
         wp_remote_post(self::api_base() . '/pairing/disconnect', [
             'headers' => ['content-type' => 'application/json'],
@@ -162,15 +162,15 @@ class WCKonsol_Pairing
     public static function start_claim(): array
     {
         $claim_token = wp_generate_password(32, false);
-        $site_uuid = WCKonsol_Keys::site_uuid();
-        $signature = WCKonsol_Keys::sign("{$claim_token}\n{$site_uuid}");
+        $site_uuid = Konsol_Keys::site_uuid();
+        $signature = Konsol_Keys::sign("{$claim_token}\n{$site_uuid}");
 
         $response = wp_remote_post(self::api_base() . '/pairing/claim-tokens', [
             'headers' => ['content-type' => 'application/json'],
             'body' => wp_json_encode([
                 'claimToken' => $claim_token,
                 'siteUuid' => $site_uuid,
-                'publicKey' => WCKonsol_Keys::public_key_base64(),
+                'publicKey' => Konsol_Keys::public_key_base64(),
                 'signature' => $signature,
                 'siteInfo' => ['url' => home_url(), 'siteName' => get_bloginfo('name')],
             ]),
@@ -192,7 +192,7 @@ class WCKonsol_Pairing
      * ikinci bir adım atmıyor. */
     public static function ajax_poll_claim()
     {
-        check_ajax_referer('wckonsol_poll_claim');
+        check_ajax_referer('konsol_poll_claim');
         if (!current_user_can('manage_options')) wp_send_json_error('forbidden', 403);
 
         $claim_token = (string) get_option(self::OPT_CLAIM_TOKEN, '');
@@ -207,8 +207,8 @@ class WCKonsol_Pairing
             return;
         }
 
-        $site_uuid = WCKonsol_Keys::site_uuid();
-        $signature = WCKonsol_Keys::sign("{$claim_token}\n{$site_uuid}");
+        $site_uuid = Konsol_Keys::site_uuid();
+        $signature = Konsol_Keys::sign("{$claim_token}\n{$site_uuid}");
         $confirm = wp_remote_post(self::api_base() . "/pairing/claim-tokens/{$claim_token}/confirm", [
             'headers' => ['content-type' => 'application/json'],
             'body' => wp_json_encode(['claimToken' => $claim_token, 'signature' => $signature]),
@@ -242,10 +242,10 @@ class WCKonsol_Pairing
     {
         if (!self::is_paired()) return;
 
-        $site_uuid = WCKonsol_Keys::site_uuid();
+        $site_uuid = Konsol_Keys::site_uuid();
         $timestamp = (string) round(microtime(true) * 1000);
         $nonce = wp_generate_password(16, false);
-        $signature = WCKonsol_Keys::sign("{$site_uuid}\n{$timestamp}\n{$nonce}");
+        $signature = Konsol_Keys::sign("{$site_uuid}\n{$timestamp}\n{$nonce}");
 
         wp_remote_post(self::api_base() . '/pairing/heartbeat', [
             'headers' => ['content-type' => 'application/json'],
@@ -261,6 +261,6 @@ class WCKonsol_Pairing
 }
 
 add_filter('cron_schedules', function ($schedules) {
-    $schedules['wckonsol_five_minutes'] = ['interval' => 300, 'display' => __('Every 5 minutes', 'wckonsol-connector')];
+    $schedules['konsol_five_minutes'] = ['interval' => 300, 'display' => __('Every 5 minutes', 'konsol-connector')];
     return $schedules;
 });

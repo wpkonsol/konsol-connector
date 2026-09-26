@@ -7,11 +7,11 @@ if (!defined('ABSPATH')) exit;
  * anahtar çifti üretir." Özel anahtar (secret key) BU SUNUCUDAN HİÇ
  * ÇIKMAZ — yalnızca imza üretmek için kullanılır, hiçbir istekte gönderilmez.
  */
-class WCKonsol_Keys
+class Konsol_Keys
 {
-    const OPT_SITE_UUID = 'wckonsol_site_uuid';
-    const OPT_PUBLIC_KEY = 'wckonsol_public_key';
-    const OPT_SECRET_KEY = 'wckonsol_secret_key';
+    const OPT_SITE_UUID = 'konsol_site_uuid';
+    const OPT_PUBLIC_KEY = 'konsol_public_key';
+    const OPT_SECRET_KEY = 'konsol_secret_key';
 
     public static function ensure_keypair()
     {
@@ -44,7 +44,7 @@ class WCKonsol_Keys
     {
         $secret_key = base64_decode((string) get_option(self::OPT_SECRET_KEY, ''));
         if (!$secret_key) {
-            throw new RuntimeException('wckonsol: özel anahtar yok — eklenti aktivasyonu eksik kalmış olabilir');
+            throw new RuntimeException('konsol: özel anahtar yok — eklenti aktivasyonu eksik kalmış olabilir');
         }
         return base64_encode(sodium_crypto_sign_detached($message, $secret_key));
     }

@@ -15,10 +15,10 @@ if (!defined('ABSPATH')) exit;
  * ama süresi dolduğunda WP'nin kendisi temizliyor, bizim ayrıca bir
  * temizlik işi yok.
  */
-class WCKonsol_Login
+class Konsol_Login
 {
     const TOKEN_TTL = 60; // saniye — Konsol'un kendi exchange-token'ıyla aynı süre
-    const QUERY_ARG = 'wckonsol_login';
+    const QUERY_ARG = 'konsol_login';
 
     public static function init()
     {
@@ -31,7 +31,7 @@ class WCKonsol_Login
 
     private static function transient_key(string $token): string
     {
-        return 'wckonsol_login_' . $token;
+        return 'konsol_login_' . $token;
     }
 
     /** `class-rest-api.php`'nin `/login-token` ucu — hangi WP kullanıcısı
