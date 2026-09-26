@@ -19,8 +19,8 @@ class WCKonsol_Settings_Page
     public static function add_menu()
     {
         add_menu_page(
-            'WC Konsol',
-            'WC Konsol',
+            'Konsol',
+            'Konsol',
             'manage_options',
             'wckonsol-connector',
             [__CLASS__, 'render'],
@@ -93,10 +93,10 @@ class WCKonsol_Settings_Page
         $claim_url = $status === 'claim_started' ? get_transient('wckonsol_claim_url_' . get_current_user_id()) : false;
         ?>
         <div class="wrap">
-            <h1>WC Konsol Connector</h1>
+            <h1>Konsol Connector</h1>
 
             <?php if ($status === 'connected'): ?>
-                <div class="notice notice-success"><p>Bağlandı — WC Konsol artık bu siteye SEO ve medya yeteneklerini kullanarak yazabilir.</p></div>
+                <div class="notice notice-success"><p>Bağlandı — Konsol artık bu siteye (WC Konsol ürünleri veya WP Konsol yazıları) SEO ve medya yeteneklerini kullanarak yazabilir.</p></div>
             <?php elseif ($status === 'disconnected'): ?>
                 <div class="notice notice-warning"><p>Bağlantı kesildi.</p></div>
             <?php elseif ($status === 'error'): ?>
@@ -124,7 +124,7 @@ class WCKonsol_Settings_Page
                 </form>
             <?php else: ?>
                 <h2>Eşleştirme kodu</h2>
-                <p>WC Konsol'da <strong>Stores → Connect with the plugin</strong> ekranından bir kod üretin, buraya yapıştırın (15 dakika geçerli).</p>
+                <p>WC Konsol'da <strong>Stores → Connect with the plugin</strong>, veya WP Konsol'da <strong>Sites → Connect with the plugin</strong> ekranından bir kod üretin, buraya yapıştırın (15 dakika geçerli).</p>
                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                     <input type="hidden" name="action" value="wckonsol_connect">
                     <?php wp_nonce_field('wckonsol_connect'); ?>

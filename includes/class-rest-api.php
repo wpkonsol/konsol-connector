@@ -56,12 +56,127 @@ class WCKonsol_REST_API
         // SEO'yu hiç meta olarak tutmuyor — tek bir `wpseo_taxonomy_meta`
         // option'ında `[taxonomy][term_id] => [wpseo_title, wpseo_desc]`
         // iç içe dizi olarak saklıyor, bkz. `write_category_seo`.
+        // WP Konsol blog yazıları için `write_seo`nun karşılığı — aynı meta
+        // key'ler (`write_meta_seo`), tek fark `post_type` kontrolü (`product`
+        // yerine `post`). WooCommerce kurulu olmayan salt-WP-Konsol
+        // sitelerinde de çalışır — bu route WooCommerce'e bağımlı değil.
+        register_rest_route(self::NAMESPACE, '/posts/(?P<id>\d+)/seo', [
+            'methods' => 'POST',
+            'callback' => [__CLASS__, 'write_post_seo'],
+            'permission_callback' => [__CLASS__, 'check_auth'],
+            'args' => ['id' => ['required' => true, 'validate_callback' => fn($value) => is_numeric($value)]],
+        ]);
+
         register_rest_route(self::NAMESPACE, '/categories/(?P<id>\d+)/seo', [
             'methods' => 'POST',
             'callback' => [__CLASS__, 'write_category_seo'],
             'permission_callback' => [__CLASS__, 'check_auth'],
             'args' => ['id' => ['required' => true, 'validate_callback' => fn($value) => is_numeric($value)]],
         ]);
+
+        // 2026-09-06 — "wp-admin'e giriş" butonu (Konsol → Stores). Tek
+        // kullanımlık, 60 saniyelik bir token üretir (bkz. `WCKonsol_Login`);
+        // Konsol'un kendi `/auth/exchange-token` desenininin aynısı, yalnızca
+        // WordPress tarafında. Hangi WP kullanıcısı olarak giriş yapılacağı
+        // pairing'de hiç kaydedilmediği için basitçe siteye ait İLK
+        // administrator seçiliyor — tek-adminli (çoğu yerel/test) site için
+        // doğru, birden fazla admin'i olan gerçek bir sitede yanlış kişi
+        // olabilir (bilinen sınırlama, MVP).
+        register_rest_route(self::NAMESPACE, '/login-token', [
+            'methods' => 'POST',
+            'callback' => [__CLASS__, 'create_login_token'],
+            'permission_callback' => [__CLASS__, 'check_auth'],
+        ]);
+
+        // 2026-09-06 — "Check for updates" (Konsol → Sites, WP Konsol tarafı).
+        // Salt okunur: hiçbir şey yüklemez/uygulamaz, yalnızca çekirdek/
+        // eklenti/tema güncelleme durumunu taze bir kontrolle okur
+        // (bkz. `get_updates` yorumu).
+        register_rest_route(self::NAMESPACE, '/updates', [
+            'methods' => 'GET',
+            'callback' => [__CLASS__, 'get_updates'],
+            'permission_callback' => [__CLASS__, 'check_auth'],
+        ]);
+    }
+
+    public static function create_login_token()
+    {
+        $admins = get_users(['role' => 'administrator', 'number' => 1, 'orderby' => 'ID', 'order' => 'ASC']);
+        if (empty($admins)) {
+            return new WP_Error('wckonsol_no_admin_user', 'No administrator user found on this site', ['status' => 404]);
+        }
+
+        return ['loginUrl' => WCKonsol_Login::create_token((int) $admins[0]->ID)];
+    }
+
+    /**
+     * "Check for updates" — salt okunur, hiçbir şeyi yüklemez/uygulamaz.
+     * WordPress'in kendi çekirdek/eklenti/tema güncelleme transient'lerini
+     * (`update_core`/`update_plugins`/`update_themes`) normalde günde iki kez
+     * cron doldurur; burada bir "şimdi kontrol et" butonu için senkron olarak
+     * zorlanıyor (`wp_version_check`/`wp_update_plugins`/`wp_update_themes`).
+     * Gerçek arka plan izleme (F9 `worker-uptime`/`worker-update`) hâlâ yok —
+     * bu yalnızca istek anındaki durumu okuyor, periyodik değil.
+     */
+    public static function get_updates(): array
+    {
+        if (!function_exists('get_plugins') || !function_exists('is_plugin_active')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+        if (!function_exists('wp_get_themes')) {
+            require_once ABSPATH . 'wp-admin/includes/theme.php';
+        }
+        require_once ABSPATH . 'wp-admin/includes/update.php';
+
+        wp_version_check();
+        wp_update_plugins();
+        wp_update_themes();
+
+        $core_updates = get_core_updates(['dismissed' => false]);
+        $core_update_available = is_array($core_updates) && isset($core_updates[0]) && $core_updates[0]->response === 'upgrade';
+
+        $plugin_update_data = get_site_transient('update_plugins');
+        $plugins = [];
+        foreach (get_plugins() as $file => $data) {
+            $new_version = $plugin_update_data->response[$file]->new_version ?? null;
+            $plugins[] = [
+                'file' => $file,
+                'name' => $data['Name'],
+                'version' => $data['Version'],
+                'active' => is_plugin_active($file),
+                'updateAvailable' => $new_version !== null,
+                'newVersion' => $new_version,
+            ];
+        }
+
+        $theme_update_data = get_site_transient('update_themes');
+        $active_stylesheet = get_stylesheet();
+        $themes = [];
+        foreach (wp_get_themes() as $stylesheet => $theme) {
+            $new_version = $theme_update_data->response[$stylesheet]['new_version'] ?? null;
+            $themes[] = [
+                // Eklentilerdeki 'file' ile aynı şekil (tek bir okunabilir
+                // tanımlayıcı alan) — istemci tarafı ikisini de aynı
+                // `SiteUpdateItem` tipiyle işliyor (bkz. `konsol-plugin.ts`).
+                'file' => $stylesheet,
+                'name' => $theme->get('Name'),
+                'version' => $theme->get('Version'),
+                'active' => $stylesheet === $active_stylesheet,
+                'updateAvailable' => $new_version !== null,
+                'newVersion' => $new_version,
+            ];
+        }
+
+        return [
+            'checkedAt' => gmdate('c'),
+            'core' => [
+                'version' => get_bloginfo('version'),
+                'updateAvailable' => $core_update_available,
+                'newVersion' => $core_update_available ? ($core_updates[0]->current ?? null) : null,
+            ],
+            'plugins' => $plugins,
+            'themes' => $themes,
+        ];
     }
 
     public static function check_auth(WP_REST_Request $request): bool
@@ -110,7 +225,26 @@ class WCKonsol_REST_API
         if (!get_post($product_id) || get_post_type($product_id) !== 'product') {
             return new WP_Error('wckonsol_product_not_found', 'Product not found', ['status' => 404]);
         }
+        return self::write_meta_seo($product_id, $request);
+    }
 
+    /** WP Konsol blog yazıları için `write_seo`nun karşılığı — bkz. route
+     * kaydındaki yorum, yalnızca `post_type` kontrolü farklı. */
+    public static function write_post_seo(WP_REST_Request $request)
+    {
+        $post_id = (int) $request['id'];
+        if (!get_post($post_id) || get_post_type($post_id) !== 'post') {
+            return new WP_Error('wckonsol_post_not_found', 'Post not found', ['status' => 404]);
+        }
+        return self::write_meta_seo($post_id, $request);
+    }
+
+    /** `write_seo`/`write_post_seo` ortak gövdesi — WC çekirdek REST'inin
+     * yazamadığı tek gerçek şey: Yoast/Rank Math meta title/description.
+     * `product_image` yayınlama (F6) bu eklenti OLMADAN da çalışıyor (bkz.
+     * packages/generation-core/src/image-storage.ts), o yüzden burada YOK. */
+    private static function write_meta_seo(int $post_id, WP_REST_Request $request)
+    {
         $seo_title = $request->get_param('seoTitle');
         $meta_description = $request->get_param('metaDescription');
         $plugin = WCKonsol_Pairing::detect_seo_plugin();
@@ -120,11 +254,11 @@ class WCKonsol_REST_API
         }
 
         if ($plugin === 'yoast') {
-            if ($seo_title !== null) update_post_meta($product_id, '_yoast_wpseo_title', sanitize_text_field($seo_title));
-            if ($meta_description !== null) update_post_meta($product_id, '_yoast_wpseo_metadesc', sanitize_text_field($meta_description));
+            if ($seo_title !== null) update_post_meta($post_id, '_yoast_wpseo_title', sanitize_text_field($seo_title));
+            if ($meta_description !== null) update_post_meta($post_id, '_yoast_wpseo_metadesc', sanitize_text_field($meta_description));
         } elseif ($plugin === 'rankmath') {
-            if ($seo_title !== null) update_post_meta($product_id, 'rank_math_title', sanitize_text_field($seo_title));
-            if ($meta_description !== null) update_post_meta($product_id, 'rank_math_description', sanitize_text_field($meta_description));
+            if ($seo_title !== null) update_post_meta($post_id, 'rank_math_title', sanitize_text_field($seo_title));
+            if ($meta_description !== null) update_post_meta($post_id, 'rank_math_description', sanitize_text_field($meta_description));
         }
 
         return ['ok' => true, 'seoPlugin' => $plugin];
