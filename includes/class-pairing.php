@@ -28,10 +28,17 @@ class WCKonsol_Pairing
         return $override !== '' ? rtrim($override, '/') : rtrim(WCKONSOL_API_BASE, '/');
     }
 
+    /** Kullanıcı "Gelişmiş"te elle bir adres girmediyse, "eklenti önce"
+     * akışının (`start_claim`) hangi app'e yönlendireceğini SİTEYE göre
+     * seçer — tek tık, ürüne göre doğru yer: WooCommerce kuruluysa WC
+     * Konsol, değilse WP Konsol. Kod-tabanlı `confirm()` akışını
+     * etkilemez (kullanıcı zaten hangi app'te olduğunu biliyor, oradan kod
+     * üretiyor) — yalnızca `start_claim()`in ürettiği URL bunu kullanıyor. */
     public static function app_base(): string
     {
         $override = trim((string) get_option(self::OPT_APP_BASE, ''));
-        return $override !== '' ? rtrim($override, '/') : rtrim(WCKONSOL_APP_BASE, '/');
+        if ($override !== '') return rtrim($override, '/');
+        return rtrim(class_exists('WooCommerce') ? WCKONSOL_APP_BASE : WPKONSOL_APP_BASE, '/');
     }
 
     public static function is_paired(): bool

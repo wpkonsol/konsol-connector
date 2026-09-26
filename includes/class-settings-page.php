@@ -196,8 +196,8 @@ class WCKonsol_Settings_Page
                         <td>
                             <input type="text" id="app_base" name="app_base" class="regular-text"
                                 value="<?php echo esc_attr(get_option(WCKonsol_Pairing::OPT_APP_BASE, '')); ?>"
-                                placeholder="<?php echo esc_attr(WCKONSOL_APP_BASE); ?>">
-                            <p class="description">"Get started without an account yet" bağlantısının açtığı adres.</p>
+                                placeholder="<?php echo esc_attr(class_exists('WooCommerce') ? WCKONSOL_APP_BASE : WPKONSOL_APP_BASE); ?>">
+                            <p class="description">"Get started without an account yet" bağlantısının açtığı adres — boş bırakılırsa WooCommerce kurulu olup olmamasına göre otomatik seçilir (<?php echo esc_html(WCKONSOL_APP_BASE); ?> / <?php echo esc_html(WPKONSOL_APP_BASE); ?>).</p>
                         </td>
                     </tr>
                 </table>

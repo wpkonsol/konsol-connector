@@ -41,6 +41,11 @@ if (!defined('WCKONSOL_API_BASE')) {
 if (!defined('WCKONSOL_APP_BASE')) {
     define('WCKONSOL_APP_BASE', 'https://app.wckonsol.com');
 }
+// WP Konsol tarafı — "eklenti önce" akışında (`WCKonsol_Pairing::app_base()`)
+// WooCommerce kurulu değilse buraya yönlendirilir, sabit değil, siteye göre seçilir.
+if (!defined('WPKONSOL_APP_BASE')) {
+    define('WPKONSOL_APP_BASE', 'https://app.wpkonsol.com');
+}
 
 require_once WCKONSOL_PLUGIN_DIR . 'includes/class-keys.php';
 require_once WCKONSOL_PLUGIN_DIR . 'includes/class-pairing.php';
